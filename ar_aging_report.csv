@@ -1,0 +1,6 @@
+region,ar_status,aging_bucket,num_invoices,total_value
+Europe,overdue,61-90+ days overdue,1553,314037.36
+India & APAC,overdue,61-90+ days overdue,864,140450.51
+LATAM,overdue,61-90+ days overdue,1700,282929.4
+Middle East & Africa,overdue,61-90+ days overdue,513,80587.08
+USA,overdue,61-90+ days overdue,245,37234.33

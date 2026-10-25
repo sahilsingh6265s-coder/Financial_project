@@ -1,0 +1,7 @@
+rule_id,rule_description,threshold,applies_to
+C1,Unmatched bank transaction above threshold requires review,50000,reconciliation
+C2,Unmatched transaction unresolved after N days is stale,7,reconciliation
+C3,Reimbursement claim above threshold needs 2 approvals,10000,reimbursement
+C4,Reimbursement claim missing receipt is auto-flagged,0,reimbursement
+C5,Vendor invoice above threshold requires 2 approvals,100000,AP
+C6,Inventory count variance above % is flagged,2,inventory
