@@ -2,11 +2,10 @@
 
 A step-by-step finance operations analysis for a fictional, cross-border medical-device manufacturer, MediRobo Diagnostics. The project combines public supply-chain order and shipping data with a synthetic finance layer to demonstrate accounts receivable (AR), accounts payable (AP), payment-risk analysis, bank reconciliation, internal controls, and employee reimbursements.
 
-> **Important:** This is an educational portfolio project, not a production finance system. Finance transactions and payment behavior are simulated and do not represent Morphle Labs or any real company. Market relabeling is illustrative only.
 
 ## Project at a glance
 
-The notebook, [FinOps_Project.ipynb`](./Morphle_FinOps_Project.ipynb), runs three connected workflows:
+The notebook, [FinOps_Project.ipynb`](./FinOps_Project.ipynb), runs three connected workflows:
 
 1. **Supply chain and AR:** clean and summarize order and delivery data, simulate customer payment terms, and produce regional AR aging and delivery analyses.
 2. **Customer payment risk:** test whether overdue payments vary across customer segments and regions, then evaluate a logistic-regression classifier.
@@ -18,7 +17,7 @@ The final notebook section exports the key reports as CSV files.
 
 | Path | Description |
 | --- | --- |
-| `Morphle_FinOps_Project.ipynb` | Main notebook containing the analysis and workflow. |
+|  FinOps_Project.ipynb` | Main notebook containing the analysis and workflow. |
 | `DataCoSupplyChainDataset.csv` | Required public supply-chain source data (approximately 180,000 rows). |
 | `ar_aging_report.csv`, `vendor_invoices.csv`, etc. | Example finance reports supplied with the project. The notebook generates its own reports under `exports/`. |
 | `exports/` | Output directory created by the final notebook cell. |
@@ -48,7 +47,7 @@ python -m pip install pandas numpy Faker scipy scikit-learn rapidfuzz jupyter
    ```
 
    Alternatively, use `jupyter lab` if you prefer JupyterLab.
-5. **Open `Morphle_FinOps_Project.ipynb`.** Select the Python environment where you installed the dependencies.
+5. **Open `FinOps_Project.ipynb`.** Select the Python environment where you installed the dependencies.
 6. **Run every cell from top to bottom.** The analyses build on dataframes and tables created earlier in the notebook; running sections out of order may fail.
 7. **Review results** in each section and find the generated CSV reports in the new `exports/` directory.
 
