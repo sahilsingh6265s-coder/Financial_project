@@ -6,7 +6,7 @@ A step-by-step finance operations analysis for a fictional, cross-border medical
 
 ## Project at a glance
 
-The notebook, [`Morphle_FinOps_Project.ipynb`](./Morphle_FinOps_Project.ipynb), runs three connected workflows:
+The notebook, [FinOps_Project.ipynb`](./Morphle_FinOps_Project.ipynb), runs three connected workflows:
 
 1. **Supply chain and AR:** clean and summarize order and delivery data, simulate customer payment terms, and produce regional AR aging and delivery analyses.
 2. **Customer payment risk:** test whether overdue payments vary across customer segments and regions, then evaluate a logistic-regression classifier.
