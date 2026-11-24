@@ -1,0 +1,43 @@
+txn_id,date,amount,description,category
+L3007,2026-11-23,20957.87,Other - Supplier 542042,Other
+L3011,2026-11-05,-33893.16,Customer Receipt - Supplier 593152,Bank Fee
+L3012,2026-09-16,-80614.23,Other - Supplier 120324,Reimbursement
+L3015,2026-09-11,-8059.84,Vendor Payment - Supplier 154615,Bank Fee
+L3027,2026-10-24,100775.76,Bank Fee - Supplier 979995,Bank Fee
+L3029,2026-11-11,-44693.93,Reimbursement - Supplier 751517,Other
+L3033,2026-09-06,-20700.84,Customer Receipt - Supplier 596564,Customer Receipt
+L3058,2026-10-27,37087.15,Payroll - Supplier 810250,Other
+L3071,2026-08-30,47719.55,Other - Supplier 910004,Other
+L3073,2026-10-13,25741.3,Vendor Payment - Supplier 991597,Reimbursement
+L3078,2026-09-11,46678.68,Payroll - Supplier 934904,Payroll
+L3084,2026-10-11,-62467.73,Customer Receipt - Supplier 549186,Customer Receipt
+L3096,2026-09-30,-71007.89,Payroll - Supplier 210665,Customer Receipt
+L3100,2026-08-29,-29929.28,Payroll - Supplier 968962,Bank Fee
+L3106,2026-08-31,49173.27,Other - Supplier 869440,Vendor Payment
+L3107,2026-10-13,-26500.39,Reimbursement - Supplier 647091,Reimbursement
+L3110,2026-09-01,-41239.73,Reimbursement - Supplier 745830,Customer Receipt
+L3114,2026-10-16,57551.2,Customer Receipt - Supplier 606983,Bank Fee
+L3121,2026-09-15,-76436.74,Payroll - Supplier 437960,Reimbursement
+L3122,2026-11-08,-75471.83,Bank Fee - Supplier 993085,Bank Fee
+L3123,2026-10-31,-34633.79,Vendor Payment - Supplier 357420,Customer Receipt
+L3127,2026-08-30,49231.77,Customer Receipt - Supplier 572700,Bank Fee
+L3147,2026-10-28,63187.07,Other - Supplier 393243,Reimbursement
+L3160,2026-10-25,48480.02,Reimbursement - Supplier 682144,Customer Receipt
+L3167,2026-11-19,9096.89,Customer Receipt - Supplier 614663,Reimbursement
+L3168,2026-10-24,48759.87,Payroll - Supplier 569945,Reimbursement
+L3171,2026-11-15,-59870.59,Bank Fee - Supplier 197573,Customer Receipt
+L3176,2026-10-31,-37751.32,Other - Supplier 355123,Bank Fee
+L3184,2026-08-28,69215.68,Vendor Payment - Supplier 460455,Other
+L3185,2026-11-24,-19945.34,Customer Receipt - Supplier 546173,Customer Receipt
+L3189,2026-11-02,-12615.2,Customer Receipt - Supplier 468900,Vendor Payment
+L3193,2026-11-18,-59398.7,Bank Fee - Supplier 421517,Bank Fee
+L3213,2026-09-28,-23115.28,Vendor Payment - Supplier 897135,Payroll
+L3220,2026-09-05,-46660.48,Vendor Payment - Supplier 410636,Other
+L3231,2026-11-14,-2314.69,Vendor Payment - Supplier 157174,Payroll
+L3242,2026-10-03,11219.22,Payroll - Supplier 398151,Customer Receipt
+L3251,2026-09-11,-39441.5,Vendor Payment - Supplier 219629,Customer Receipt
+L3258,2026-10-10,57448.91,Customer Receipt - Supplier 760021,Other
+L3266,2026-09-23,-99380.75,Reimbursement - Supplier 189318,Reimbursement
+L3275,2026-08-30,114390.17,Payroll - Supplier 748458,Payroll
+L3292,2026-09-26,114135.35,Payroll - Supplier 899787,Vendor Payment
+L3299,2026-09-27,9224.97,Other - Supplier 264686,Reimbursement
