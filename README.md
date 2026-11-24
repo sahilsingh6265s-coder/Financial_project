@@ -3,6 +3,16 @@
 A step-by-step finance operations analysis for a fictional, cross-border medical-device manufacturer, MediRobo Diagnostics. The project combines public supply-chain order and shipping data with a synthetic finance layer to demonstrate accounts receivable (AR), accounts payable (AP), payment-risk analysis, bank reconciliation, internal controls, and employee reimbursements.
 
 
+## Findings from the simulated finance data
+
+![Bank reconciliation: 258 cleared out of 291 entries. Of the 33 still open, 24 are unmatched, 5 have amount differences, and 4 are ambiguous.](docs/findings/cash-reconciliation.svg)
+
+[View the bank reconciliation results](exports/reconciliation_matches.csv)
+
+![Invoice aging: 4,474 of 5,106 overdue invoices are at least 91 days late (87.6%).](docs/findings/invoice-aging.svg)
+
+[View the receivables aging report](exports/ar_aging_report.csv)
+
 ## Project at a glance
 
 The notebook, [Morphle_FinOps_Project.ipynb](./Morphle_FinOps_Project.ipynb), runs three connected workflows:
