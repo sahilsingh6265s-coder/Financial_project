@@ -3,6 +3,8 @@
 A step-by-step finance operations analysis for a fictional, cross-border medical-device manufacturer, MediRobo Diagnostics. The project combines public supply-chain order and shipping data with a synthetic finance layer to demonstrate accounts receivable (AR), accounts payable (AP), payment-risk analysis, bank reconciliation, internal controls, and employee reimbursements.
 
 
+[Three-page HTML dashboard](dashboard.html) · Download the HTML file and open it in a browser to explore the results offline.
+
 ## Findings from the simulated finance data
 
 ![Bank reconciliation: 258 cleared out of 291 entries. Of the 33 still open, 24 are unmatched, 5 have amount differences, and 4 are ambiguous.](docs/findings/cash-reconciliation.svg)
