@@ -1,50 +1,558 @@
-import csv,json
-from pathlib import Path
+import csv
+import json
 from collections import Counter
-from html import escape
-def rows(name):return list(csv.DictReader(open('exports/'+name+'.csv')))
-def bars(items):
-    top=max(v for _,v in items)
-    return ''.join(f'<div class="bar"><span>{k}</span><i><b style="width:{100*v/top:.2f}%"></b></i><strong>{v:,}</strong></div>' for k,v in items)
-def table(headers,records):
-    return '<div class="scroll"><table><thead><tr>'+''.join('<th>'+h+'</th>' for h in headers)+'</tr></thead><tbody>'+''.join('<tr>'+''.join('<td>'+escape(str(x))+'</td>' for x in row)+'</tr>' for row in records)+'</tbody></table></div>'
-def metrics(items):
-    return '<div class="metrics">'+''.join(f'<div><span>{k}</span><strong>{v}</strong></div>' for k,v in items)+'</div>'
-def panel(title,body):return '<article><h2>'+title+'</h2>'+body+'</article>'
-ar=rows('ar_aging_report'); bank=rows('reconciliation_matches');claim=rows('reimbursement_claims');vendors=rows('vendor_invoices'); aging=Counter(); regions=Counter()
-for r in ar:
-    if r['ar_status']=='overdue':
-        aging[r['aging_bucket']]+=int(r['num_invoices']);regions[r['region']]+=int(r['num_invoices'])
-late=sum(aging.values());counts=Counter(r['status'] for r in bank)
-nb=json.loads(Path('Morphle_FinOps_Project.ipynb').read_text())
-out=''.join(nb['cells'][19]['outputs'][0]['text'])
-assert 'ROC-AUC: 0.6' in out and '0.10      0.68' in out and '16254' in out
-p1=metrics([('Overdue invoices',f'{late:,}'),('91+ days overdue',f"{aging['91+ days overdue']:,}"),('Share aged 91+ days',f"{100*aging['91+ days overdue']/late:.1f}%")])+panel('Overdue invoices by age',bars([(s,aging[s]) for s in ['1-30 days overdue','31-60 days overdue','61-90 days overdue','91+ days overdue']]))+panel('Regional collections queue',bars(regions.most_common()))+panel('Delivery performance','<p>First Class had the highest late-delivery rate in the notebook’s shipping analysis. Rates ranged from <strong>94.7% in LATAM</strong> to <strong>96.2% in Middle East &amp; Africa</strong>.</p>')
-p2=metrics([('Holdout ROC-AUC','0.600'),('Overdue recall','68%'),('Overdue precision','10%')])+panel('How to read this model','<p>The model flagged about 68 of every 100 overdue invoices. Only about 10 of every 100 flagged invoices were actually overdue. That trade-off creates a large manual review queue.</p>')+panel('Holdout results',table(['Actual class','Invoices','Precision','Recall'],[('Paid','14,977','94%','45%'),('Overdue','1,277','10%','68%')]))+panel('Which differences appeared in the simulation?',table(['Comparison','Test','p-value'],[('Region vs. overdue status','Chi-square','<0.0001'),('Customer segment vs. overdue status','Chi-square','0.7365'),('Sales value for paid vs. overdue orders','Welch t-test','0.0117')])+'<p class="note">Payment risk was assigned partly by region in the simulator. The region result reflects that assumption. These metrics describe simulated outcomes.</p>')
-labels={'matched':'Cleared','unmatched':'Unmatched','amount_mismatch':'Amount mismatch','ambiguous':'Ambiguous'}
-exceptions=[(r['bank_txn_id'],r['ledger_txn_id'] or '—',labels[r['status']],r['variance'] or '—') for r in bank if r['status']!='matched']
-openap=[r for r in vendors if r['status'] in ['overdue','pending']]
-p3=metrics([('Bank entries',len(bank)),('Cleared',counts['matched']),('Open for review',len(exceptions))])+panel('Reconciliation outcomes',bars([(labels[k],v) for k,v in counts.most_common()]))+panel('Open bank entries','<label>Show <select id="filter"><option>All exceptions</option><option>Unmatched</option><option>Amount mismatch</option><option>Ambiguous</option></select></label><p id="shown" aria-live="polite"></p><div id="queue">'+table(['Bank ID','Ledger ID','Outcome','Signed variance'],exceptions)+'</div>')+panel('Other finance controls',f'<p><strong>{len(openap)} of {len(vendors)} vendor invoices</strong> are open. Using the notebook’s illustrative FX rates, USD payables account for ₹92.30 million of exposure.</p><p><strong>{sum(r["processing_status"].startswith("NEEDS_REVIEW") for r in claim)} of {len(claim)} reimbursements</strong> require review under the demo rules.</p>')
-pages=[('receivables','Supply chain & receivables','Invoice aging, regional collections and delivery performance.',p1),('payment-risk','Customer payment risk','How well the baseline model identifies overdue invoices.',p2),('controls','Finance operations controls','Bank exceptions, open payables and reimbursement checks.',p3)]
-css="""*{box-sizing:border-box}body{margin:0;background:#f3f4ef;color:#182e33;font:16px/1.55 Inter,Arial,sans-serif}header{background:#122f35;color:white;padding:22px max(5vw,20px);display:flex;justify-content:space-between;align-items:center;gap:16px}header strong{letter-spacing:.05em}header small{color:#d0e6de}nav{display:flex;flex-wrap:wrap;gap:8px;padding:14px max(5vw,20px);border-bottom:1px solid #cbd4cf;background:white}nav a{color:#28474b;text-decoration:none;padding:8px 15px;border-radius:6px;font-weight:600}nav a[aria-current=page]{background:#d9eee6;color:#114c42}main{max-width:1150px;margin:0 auto;padding:32px 5vw 64px}h1{font:clamp(32px,5vw,54px)/1.1 Georgia,serif;margin:8px 0 10px}h2{font-size:20px;margin:0 0 18px}section>p{color:#466168}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:26px 0}.metrics div,article{background:white;padding:22px;border:1px solid #cfdbd5;border-radius:10px}.metrics strong{display:block;font-size:clamp(23px,4vw,40px);font-variant-numeric:tabular-nums}.metrics span,.note{color:#48646a}article{margin:15px 0}.bar{display:grid;grid-template-columns:minmax(130px,1.1fr) 3fr 58px;align-items:center;gap:14px;margin:12px 0}.bar i{background:#e8efeb;height:12px;border-radius:3px}.bar b{display:block;background:#197568;height:100%;border-radius:3px}.bar strong{text-align:right}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}td,th{text-align:left;padding:10px;border-bottom:1px solid #dce4df}th{background:#edf3ee}.scroll{overflow:auto;max-height:480px}.scroll th{position:sticky;top:0}select{font:inherit;padding:4px}footer{color:#48646a;margin-top:28px;font-size:14px}@media(max-width:600px){.metrics{gap:6px}.metrics div{padding:10px}.metrics span{font-size:12px}article{padding:15px}.bar{grid-template-columns:110px 1fr 44px;gap:7px;font-size:13px}nav a{padding:5px;font-size:13px}header{flex-wrap:wrap}}"""
-html='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MediRobo | Finance operations</title><style>'+css+'</style><header><strong>MediRobo Diagnostics</strong><small>Finance operations · Simulated portfolio</small></header><nav aria-label="Workflows">'+''.join(f'<a href="#{k}">{t}</a>' for k,t,_,_ in pages)+'</nav><main>'+''.join(f'<section id="{k}"><h1>{t}</h1><p>{sub}</p>{body}</section>' for k,t,sub,body in pages)+'</main>'
-html+="""<script>
-function route(){
- const sections=[...document.querySelectorAll('main section')];
- const page=sections.find(s=>s.id===location.hash.slice(1))||sections[0];
- sections.forEach(s=>s.hidden=s!==page);
- document.querySelectorAll('nav a').forEach(a=>a.setAttribute('aria-current',a.hash==='#'+page.id?'page':'false'));
- document.title=page.querySelector('h1').textContent+' | MediRobo';
- window.scrollTo(0,0);
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def read_rows(name):
+    with (ROOT / "exports" / f"{name}.csv").open(
+        encoding="utf-8-sig", newline=""
+    ) as source:
+        return list(csv.DictReader(source))
+
+
+ar_rows = read_rows("ar_aging_report")
+bank_rows = read_rows("reconciliation_matches")
+claim_rows = read_rows("reimbursement_claims")
+vendor_rows = read_rows("vendor_invoices")
+
+overdue_rows = [row for row in ar_rows if row["ar_status"] == "overdue"]
+aging_counts = Counter()
+region_counts = Counter()
+for row in overdue_rows:
+    count = int(row["num_invoices"])
+    aging_counts[row["aging_bucket"]] += count
+    region_counts[row["region"]] += count
+
+status_labels = {
+    "matched": "Cleared",
+    "unmatched": "Unmatched",
+    "amount_mismatch": "Amount mismatch",
+    "ambiguous": "Ambiguous",
 }
-function filterQueue(){
- const choice=document.querySelector('#filter').value;
- const rows=[...document.querySelectorAll('#queue tbody tr')];
- rows.forEach(r=>r.hidden=choice!=='All exceptions'&&r.cells[2].textContent!==choice);
- document.querySelector('#shown').textContent=rows.filter(r=>!r.hidden).length+' open entries';
+reconciliation_counts = Counter(row["status"] for row in bank_rows)
+exceptions = [
+    {
+        "bank_id": row["bank_txn_id"],
+        "ledger_id": row["ledger_txn_id"] or "",
+        "status": status_labels[row["status"]],
+        "variance": row["variance"] or "",
+    }
+    for row in bank_rows
+    if row["status"] != "matched"
+]
+
+open_vendor_count = sum(
+    row["status"] in {"overdue", "pending"} for row in vendor_rows
+)
+review_claim_count = sum(
+    row["processing_status"].startswith("NEEDS_REVIEW") for row in claim_rows
+)
+
+notebook = json.loads((ROOT / "Morphle_FinOps_Project.ipynb").read_text(encoding="utf-8"))
+model_output = "".join(notebook["cells"][19]["outputs"][0]["text"])
+assert "ROC-AUC: 0.6" in model_output
+assert "0.10      0.68" in model_output
+assert "16254" in model_output
+
+aging_order = [
+    "1-30 days overdue",
+    "31-60 days overdue",
+    "61-90 days overdue",
+    "91+ days overdue",
+]
+dashboard_data = {
+    "receivables": {
+        "overdue_count": sum(aging_counts.values()),
+        "aging_91_plus": aging_counts["91+ days overdue"],
+        "aging": [
+            {"label": label, "value": aging_counts[label]} for label in aging_order
+        ],
+        "regions": [
+            {"label": label, "value": value}
+            for label, value in region_counts.most_common()
+        ],
+    },
+    "risk": {
+        "roc_auc": 0.6,
+        "overdue_recall": 0.68,
+        "overdue_precision": 0.10,
+        "paid_precision": 0.94,
+        "paid_recall": 0.45,
+        "paid_count": 14977,
+        "overdue_holdout_count": 1277,
+    },
+    "controls": {
+        "bank_count": len(bank_rows),
+        "cleared_count": reconciliation_counts["matched"],
+        "open_count": len(exceptions),
+        "reconciliation": [
+            {"label": status_labels[key], "value": value, "key": key}
+            for key, value in reconciliation_counts.most_common()
+        ],
+        "exceptions": exceptions,
+        "open_vendor_count": open_vendor_count,
+        "vendor_count": len(vendor_rows),
+        "review_claim_count": review_claim_count,
+        "claim_count": len(claim_rows),
+    },
 }
-window.addEventListener('hashchange',route);
-document.querySelector('#filter').addEventListener('change',filterQueue);
-route();filterQueue();
-</script></html>"""
-Path('dashboard.html').write_text(html, encoding='utf-8')
+
+css = r"""
+:root{color-scheme:light;--ink:#172b3a;--muted:#687b8c;--nav:#10283a;--nav-soft:#1d3b50;--brand:#15a985;--brand-dark:#087d68;--canvas:#f3f6f9;--line:#e4eaf0;--card:#fff;--amber:#e5a13b;--red:#d56362;--blue:#6c8fe5;--shadow:0 10px 28px rgba(27,52,72,.055)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--canvas);color:var(--ink);font:14px/1.5 Inter,"Segoe UI",Arial,sans-serif}
+button,input,select{font:inherit}
+button,a{-webkit-tap-highlight-color:transparent}
+.shell{min-height:100vh}
+.sidebar{position:fixed;inset:0 auto 0 0;width:254px;padding:26px 17px;background:var(--nav);color:#eaf1f6;display:flex;flex-direction:column;z-index:5}
+.brand{display:flex;align-items:center;gap:12px;padding:0 10px 32px;color:#fff;text-decoration:none}
+.brand-mark{width:37px;height:37px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#36d6a5,#07866e);font-size:19px;font-weight:800;color:#082c2a;box-shadow:0 5px 16px #0f9f7c44}
+.brand strong{display:block;font-size:15px;letter-spacing:.01em}.brand small{display:block;color:#9eb0bd;font-size:11px;margin-top:1px}
+.nav-label{padding:9px 12px;color:#7991a2;text-transform:uppercase;letter-spacing:.11em;font-size:10px;font-weight:700}
+.side-nav{display:grid;gap:5px}
+.side-nav a{display:flex;align-items:center;gap:12px;padding:11px 12px;color:#b8c8d3;text-decoration:none;border-radius:9px;font-weight:550;transition:background .18s,color .18s}
+.side-nav a:hover{background:#ffffff0d;color:white}
+.side-nav a[aria-current=page]{background:linear-gradient(90deg,#19a9862b,#19a9860c);color:#76e2c1;box-shadow:inset 3px 0 #28c49a}
+.nav-icon{width:19px;height:19px;display:grid;place-items:center;font-size:16px;opacity:.95}
+.side-bottom{margin-top:auto;border-top:1px solid #ffffff17;padding:17px 9px 0;color:#9eb0bd;font-size:11px}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#32d39b;margin-right:7px;box-shadow:0 0 0 3px #32d39b20}
+.main{margin-left:254px;min-height:100vh}
+.topbar{height:70px;padding:0 clamp(22px,4vw,48px);background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:18px}
+.crumb{color:var(--muted);font-size:12px}.crumb strong{color:var(--ink);font-weight:650}
+.top-actions{display:flex;align-items:center;gap:13px}.demo-tag{border:1px solid #cceee4;background:#f0fbf7;color:#08765e;border-radius:100px;padding:6px 11px;font-size:11px;font-weight:700}
+.avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#e8f4ef;color:#13775e;font-size:12px;font-weight:750}
+.content{max-width:1450px;padding:34px clamp(22px,4vw,48px) 52px;margin:auto}
+.page-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:26px}
+.eyebrow{margin:0 0 7px;color:var(--brand-dark);font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}
+h1{font-size:clamp(25px,3vw,34px);line-height:1.15;letter-spacing:-.035em;margin:0;color:#152b3b}
+.subtitle{margin:8px 0 0;color:var(--muted);font-size:13px}
+.snapshot{color:var(--muted);font-size:11px;white-space:nowrap}
+.view{display:none;animation:enter .22s ease-out}.view.active{display:block}
+@keyframes enter{from{opacity:.55;transform:translateY(4px)}to{opacity:1;transform:none}}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-bottom:19px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:19px 20px;box-shadow:var(--shadow);min-width:0}
+.kpi-head{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--muted);font-size:11px;font-weight:650}
+.kpi-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;background:#e9f8f3;color:var(--brand-dark);font-size:15px}
+.kpi-value{display:block;margin:12px 0 4px;font-size:clamp(25px,2.4vw,32px);font-weight:750;letter-spacing:-.045em;line-height:1.1;font-variant-numeric:tabular-nums}
+.kpi-foot{color:var(--muted);font-size:10px}.kpi-foot.positive{color:var(--brand-dark)}.kpi-foot.warning{color:#aa6a14}
+.grid-2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:17px;margin:17px 0}
+.grid-equal{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;margin:17px 0}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:20px 21px;box-shadow:var(--shadow);min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:19px}
+.panel h2{margin:0;font-size:14px;letter-spacing:-.01em}.panel-sub{margin:4px 0 0;color:var(--muted);font-size:11px}
+.panel-link{border:0;background:transparent;color:var(--brand-dark);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;padding:4px}
+.bars{display:grid;gap:15px}
+.bar-row{display:grid;grid-template-columns:minmax(98px,1.2fr) minmax(70px,3fr) 56px;align-items:center;gap:13px}
+.bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#526778;font-size:11px}
+.bar-track{height:9px;border-radius:9px;background:#edf2f5;overflow:hidden}
+.bar-fill{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#16a781,#57d2a4);transition:width .5s ease}
+.bar-fill.amber{background:linear-gradient(90deg,#e4a241,#f2c568)}.bar-value{text-align:right;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
+.chart-legend{display:flex;flex-wrap:wrap;gap:12px;margin:17px 0 0;padding-top:13px;border-top:1px solid var(--line);color:var(--muted);font-size:10px}
+.legend-item{display:flex;align-items:center;gap:6px}.legend-dot{width:8px;height:8px;border-radius:3px;display:inline-block}
+.donut-wrap{display:flex;align-items:center;gap:23px;min-height:175px}
+.donut{width:150px;height:150px;flex:none;border-radius:50%;display:grid;place-items:center;position:relative}
+.donut:after{content:"";position:absolute;inset:20px;border-radius:50%;background:#fff}
+.donut-center{position:relative;z-index:1;text-align:center}.donut-center strong{display:block;font-size:23px;letter-spacing:-.04em}.donut-center span{color:var(--muted);font-size:9px}
+.donut-legend{display:grid;gap:11px;min-width:0}.donut-legend button{display:flex;align-items:center;gap:8px;border:0;background:none;color:#536879;padding:0;text-align:left;cursor:pointer;font-size:11px}
+.donut-legend button:hover{color:var(--brand-dark)}.legend-count{margin-left:auto;color:var(--ink);font-weight:700;padding-left:9px}
+.insight{display:flex;gap:13px;align-items:flex-start;border:1px solid #dcefe8;background:linear-gradient(120deg,#f3fbf7,#fff);padding:17px 18px;border-radius:12px;margin-top:17px}
+.insight-icon{width:30px;height:30px;border-radius:9px;background:#dff5ec;color:#118365;display:grid;place-items:center;flex:none}
+.insight strong{display:block;font-size:12px;margin:1px 0 3px}.insight p{margin:0;color:#647987;font-size:11px}
+.table-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:6px 0 14px;flex-wrap:wrap}
+.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.control,.search{height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:0 11px;font-size:11px;outline:none}
+.control:focus,.search:focus{border-color:#6bc8aa;box-shadow:0 0 0 3px #16a78118}
+.search{width:min(270px,64vw);padding-left:34px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%237d8b98' stroke-width='1.7' viewBox='0 0 24 24'%3E%3Ccircle cx='10.8' cy='10.8' r='6.6'/%3E%3Cpath d='m16 16 4.5 4.5'/%3E%3C/svg%3E") no-repeat 11px center}
+.button{height:36px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#40576a;padding:0 12px;font-size:11px;font-weight:650;cursor:pointer;transition:all .16s}
+.button:hover{border-color:#9bbbac;color:var(--brand-dark)}.button.primary{background:var(--nav);border-color:var(--nav);color:white}.button.primary:hover{background:#1b4058}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px}
+table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:11px}
+thead{background:#f7f9fb;color:#65798a}th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid #edf1f4}
+tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#f8fbfa}td{font-variant-numeric:tabular-nums}
+.sort-button{border:0;background:none;color:inherit;padding:0;font:inherit;text-transform:inherit;letter-spacing:inherit;cursor:pointer}.sort-button:after{content:" ↕";color:#a5b1bb}
+.status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:4px 8px;font-size:10px;font-weight:700}
+.status-pill:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.status-pill.unmatched{color:#aa6a14;background:#fff4df}.status-pill.amount-mismatch{color:#b84b48;background:#fff0ee}.status-pill.ambiguous{color:#596fc1;background:#eef1ff}
+.table-foot{display:flex;justify-content:space-between;gap:12px;padding-top:11px;color:var(--muted);font-size:10px}
+.risk-hero{display:flex;align-items:center;gap:22px;border-radius:13px;padding:23px;background:linear-gradient(110deg,#10283a,#1a4557);color:white;margin-bottom:17px}
+.risk-score{width:83px;height:83px;border:5px solid #ffffff25;border-right-color:#45d2a7;border-top-color:#45d2a7;border-radius:50%;display:grid;place-items:center;flex:none}
+.risk-score strong{font-size:22px}.risk-copy h2{margin:0 0 5px;font-size:16px}.risk-copy p{margin:0;color:#c4d2da;font-size:11px;max-width:650px}
+.risk-bars .bar-row{grid-template-columns:130px minmax(70px,1fr) 52px}.risk-bars .bar-fill{background:linear-gradient(90deg,#6289e7,#98b2f3)}
+.risk-bars .bar-fill.green{background:linear-gradient(90deg,#17a781,#58d3a5)}
+.data-note{padding:13px 15px;border-left:3px solid #e8ad4c;background:#fff9ed;color:#6d5b3e;font-size:11px;border-radius:0 8px 8px 0}
+.control-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:17px 0}
+.control-card{padding:16px;border:1px solid var(--line);background:#fff;border-radius:11px}.control-card span{color:var(--muted);font-size:10px}.control-card strong{display:block;font-size:21px;margin:5px 0 1px;letter-spacing:-.03em}.control-card small{color:var(--muted);font-size:10px}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+.footer{margin-top:22px;text-align:center;color:#8a99a6;font-size:10px}
+.menu-toggle{display:none;width:36px;height:36px;border:1px solid var(--line);background:white;border-radius:8px;color:var(--ink);font-size:17px}
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.donut-wrap{gap:15px}.donut{width:125px;height:125px}.donut:after{inset:17px}}
+@media(max-width:820px){.sidebar{width:224px;transform:translateX(-100%);transition:transform .22s}.sidebar.open{transform:translateX(0);box-shadow:12px 0 40px #10283a35}.main{margin-left:0}.menu-toggle{display:grid;place-items:center}.topbar{justify-content:flex-start}.top-actions{margin-left:auto}}
+@media(max-width:620px){.content{padding-top:24px}.page-heading{align-items:flex-start;flex-direction:column;gap:8px}.grid-2,.grid-equal{grid-template-columns:1fr}.kpi-grid{gap:9px}.kpi{padding:14px}.kpi-value{font-size:25px}.kpi-head{font-size:10px}.kpi-icon{width:27px;height:27px}.panel{padding:16px}.donut-wrap{justify-content:flex-start}.snapshot{white-space:normal}.risk-hero{padding:17px;gap:14px}.risk-score{width:68px;height:68px}.risk-bars .bar-row{grid-template-columns:105px minmax(60px,1fr) 46px}.bar-row{grid-template-columns:minmax(82px,1fr) 2fr 45px;gap:8px}.topbar{height:60px;padding:0 15px}.crumb{font-size:11px}.demo-tag{font-size:9px;padding:5px 8px}.avatar{width:30px;height:30px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+"""
+
+html_template = r"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10283a">
+<meta name="description" content="Interactive finance operations dashboard for the MediRobo Diagnostics portfolio simulation.">
+<title>Executive overview | MediRobo Finance</title>
+<style>__CSS__</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#overview" aria-label="MediRobo Finance overview">
+      <span class="brand-mark">M</span><span><strong>MediRobo</strong><small>FINANCE OPERATIONS</small></span>
+    </a>
+    <div class="nav-label">Workspace</div>
+    <nav class="side-nav" aria-label="Dashboard sections">
+      <a href="#overview" data-view="overview"><span class="nav-icon">◫</span>Executive overview</a>
+      <a href="#receivables" data-view="receivables"><span class="nav-icon">◷</span>Receivables</a>
+      <a href="#payment-risk" data-view="payment-risk"><span class="nav-icon">⌁</span>Payment risk</a>
+      <a href="#controls" data-view="controls"><span class="nav-icon">▤</span>Finance controls</a>
+    </nav>
+    <div class="side-bottom"><span class="status-dot"></span>Simulation data · Offline ready</div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" aria-label="Open navigation" aria-expanded="false">☰</button>
+      <div class="crumb">Workspace <span aria-hidden="true">/</span> <strong id="crumbTitle">Executive overview</strong></div>
+      <div class="top-actions"><span class="demo-tag">DEMO DATA</span><span class="avatar" aria-label="MediRobo">MR</span></div>
+    </header>
+    <main class="content">
+      <div class="page-heading">
+        <div><p class="eyebrow">Portfolio intelligence</p><h1 id="pageTitle">Executive overview</h1><p class="subtitle" id="pageSubtitle">A clear view of receivables, payment risk and operational controls.</p></div>
+        <span class="snapshot">Interactive report · All values from the bundled simulation</span>
+      </div>
+
+      <section class="view active" id="overview" aria-labelledby="pageTitle">
+        <div class="kpi-grid" id="overviewKpis"></div>
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-head"><div><h2>Receivables aging</h2><p class="panel-sub">Overdue invoice count by aging bucket</p></div><a class="panel-link" href="#receivables">View details →</a></div>
+            <div class="bars" id="overviewAging"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h2>Cash reconciliation</h2><p class="panel-sub">Bank transaction matching outcomes</p></div><a class="panel-link" href="#controls">Review exceptions →</a></div>
+            <div class="donut-wrap"><div class="donut" id="overviewDonut" role="img" aria-label="Reconciliation outcome chart"><div class="donut-center"><strong id="donutTotal"></strong><span>BANK ENTRIES</span></div></div><div class="donut-legend" id="donutLegend"></div></div>
+          </article>
+        </div>
+        <div class="grid-equal">
+          <article class="panel">
+            <div class="panel-head"><div><h2>Collections by region</h2><p class="panel-sub">Overdue invoices · ranked by count</p></div><a class="panel-link" href="#receivables">Explore →</a></div>
+            <div class="bars" id="overviewRegions"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h2>Model signal quality</h2><p class="panel-sub">Overdue invoice holdout performance</p></div><a class="panel-link" href="#payment-risk">Model details →</a></div>
+            <div class="bars risk-bars" id="overviewRisk"></div>
+            <div class="insight"><span class="insight-icon">i</span><div><strong>Use as a review signal, not an automated decision</strong><p>High recall comes with low precision, so flagged invoices need human review.</p></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="receivables" aria-labelledby="pageTitle">
+        <div class="kpi-grid" id="receivableKpis"></div>
+        <div class="grid-2">
+          <article class="panel"><div class="panel-head"><div><h2>Overdue invoices by age</h2><p class="panel-sub">Aging buckets in the simulated receivables portfolio</p></div></div><div class="bars" id="receivableAging"></div></article>
+          <article class="panel"><div class="panel-head"><div><h2>Regional collection queue</h2><p class="panel-sub">Prioritize regions with the highest overdue counts</p></div></div><div class="bars" id="receivableRegions"></div></article>
+        </div>
+        <div class="insight"><span class="insight-icon">!</span><div><strong>Concentration in the oldest aging bucket</strong><p id="agingInsight"></p></div></div>
+      </section>
+
+      <section class="view" id="payment-risk" aria-labelledby="pageTitle">
+        <div class="kpi-grid" id="riskKpis"></div>
+        <div class="risk-hero"><div class="risk-score"><strong>0.60</strong></div><div class="risk-copy"><h2>Baseline model · ROC-AUC</h2><p>The model separates paid and overdue invoices only modestly in the holdout set. Combine the score with operational context and human review.</p></div></div>
+        <div class="grid-equal">
+          <article class="panel"><div class="panel-head"><div><h2>Overdue class performance</h2><p class="panel-sub">Precision and recall answer different questions</p></div></div><div class="bars risk-bars" id="riskBars"></div><div class="insight"><span class="insight-icon">i</span><div><strong>Interpretation</strong><p>For every 100 overdue invoices, the model finds about 68. Of every 100 it flags, about 10 are actually overdue.</p></div></div></article>
+          <article class="panel"><div class="panel-head"><div><h2>Holdout class summary</h2><p class="panel-sub">Model report from the saved notebook run</p></div></div><div class="table-wrap"><table><thead><tr><th>Actual class</th><th>Invoices</th><th>Precision</th><th>Recall</th></tr></thead><tbody><tr><td>Paid</td><td>14,977</td><td>94%</td><td>45%</td></tr><tr><td>Overdue</td><td>1,277</td><td>10%</td><td>68%</td></tr></tbody></table></div><div class="data-note" style="margin-top:15px">Payment risk is partly assigned by region in the simulator. The region relationship reflects this assumption; results should not be treated as real-world credit guidance.</div></article>
+        </div>
+        <article class="panel"><div class="panel-head"><div><h2>Statistical checks in the simulation</h2><p class="panel-sub">Associations observed in the saved analysis</p></div></div><div class="table-wrap"><table><thead><tr><th>Comparison</th><th>Test</th><th>p-value</th><th>Interpretation</th></tr></thead><tbody><tr><td>Region vs. overdue status</td><td>Chi-square</td><td>&lt;0.0001</td><td>Associated in this simulation</td></tr><tr><td>Customer segment vs. overdue status</td><td>Chi-square</td><td>0.7365</td><td>No clear association detected</td></tr><tr><td>Sales value for paid vs. overdue</td><td>Welch t-test</td><td>0.0117</td><td>Difference observed in this run</td></tr></tbody></table></div></article>
+      </section>
+
+      <section class="view" id="controls" aria-labelledby="pageTitle">
+        <div class="kpi-grid" id="controlKpis"></div>
+        <div class="control-cards" id="controlCards"></div>
+        <article class="panel">
+          <div class="panel-head"><div><h2>Open reconciliation exceptions</h2><p class="panel-sub">Search, filter or sort unmatched bank entries for review</p></div><button class="button" id="downloadCsv">Export CSV ↓</button></div>
+          <div class="table-toolbar">
+            <div class="toolbar-left"><input class="search" id="exceptionSearch" type="search" placeholder="Search bank or ledger ID" aria-label="Search exceptions"><select class="control" id="statusFilter" aria-label="Filter by status"><option value="">All exception types</option><option>Unmatched</option><option>Amount mismatch</option><option>Ambiguous</option></select></div>
+            <div class="toolbar-right"><button class="button" id="clearFilters">Clear filters</button></div>
+          </div>
+          <div class="table-wrap"><table id="exceptionTable"><thead><tr><th><button class="sort-button" data-sort="bank_id">Bank ID</button></th><th><button class="sort-button" data-sort="ledger_id">Ledger ID</button></th><th><button class="sort-button" data-sort="status">Status</button></th><th><button class="sort-button" data-sort="variance">Signed variance</button></th></tr></thead><tbody id="exceptionRows"></tbody></table></div>
+          <div class="table-foot"><span id="exceptionCount" aria-live="polite"></span><span>Click a column heading to sort</span></div>
+        </article>
+      </section>
+      <footer class="footer">MediRobo Diagnostics · Illustrative project dataset · Not for real financial or credit decisions</footer>
+    </main>
+  </div>
+</div>
+<script>
+const DATA = __DATA__;
+const pageMeta = {
+  overview: ["Executive overview", "A clear view of receivables, payment risk and operational controls."],
+  receivables: ["Receivables", "Monitor overdue invoices and focus collection activity."],
+  "payment-risk": ["Payment risk", "Understand model performance before using risk signals."],
+  controls: ["Finance controls", "Investigate reconciliation exceptions and operational review queues."]
+};
+const colors = {Cleared:"#16a781",Unmatched:"#e5a13b","Amount mismatch":"#d56362",Ambiguous:"#6c8fe5"};
+const formatNumber = value => Number(value).toLocaleString("en-US");
+const percent = value => `${(value * 100).toFixed(1)}%`;
+
+function addKpis(target, cards) {
+  const container = document.getElementById(target);
+  cards.forEach(([label, value, note, icon, tone]) => {
+    const card = document.createElement("article");
+    card.className = "kpi";
+    const head = document.createElement("div");
+    head.className = "kpi-head";
+    const title = document.createElement("span");
+    title.textContent = label;
+    const symbol = document.createElement("span");
+    symbol.className = "kpi-icon";
+    symbol.setAttribute("aria-hidden", "true");
+    symbol.textContent = icon;
+    head.append(title, symbol);
+    const metric = document.createElement("strong");
+    metric.className = "kpi-value";
+    metric.textContent = value;
+    const foot = document.createElement("span");
+    foot.className = `kpi-foot ${tone || ""}`;
+    foot.textContent = note;
+    card.append(head, metric, foot);
+    container.append(card);
+  });
+}
+
+function renderBars(target, items, formatter = formatNumber, color = "") {
+  const container = document.getElementById(target);
+  const max = Math.max(...items.map(item => item.value), 1);
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    const label = document.createElement("span");
+    label.className = "bar-label";
+    label.textContent = item.label;
+    label.title = item.label;
+    const track = document.createElement("span");
+    track.className = "bar-track";
+    track.setAttribute("role", "img");
+    track.setAttribute("aria-label", `${item.label}: ${formatter(item.value)}`);
+    const fill = document.createElement("span");
+    fill.className = `bar-fill ${color}`;
+    fill.style.width = `${(item.value / max) * 100}%`;
+    track.append(fill);
+    const value = document.createElement("strong");
+    value.className = "bar-value";
+    value.textContent = formatter(item.value);
+    row.append(label, track, value);
+    container.append(row);
+  });
+}
+
+function renderDonut() {
+  const outcomes = DATA.controls.reconciliation;
+  const total = DATA.controls.bank_count;
+  let offset = 0;
+  const segments = outcomes.map(item => {
+    const start = offset;
+    offset += (item.value / total) * 100;
+    return `${colors[item.label]} ${start}% ${offset}%`;
+  });
+  document.getElementById("overviewDonut").style.background =
+    `conic-gradient(${segments.join(",")})`;
+  document.getElementById("donutTotal").textContent = formatNumber(total);
+  const legend = document.getElementById("donutLegend");
+  outcomes.forEach(item => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const dot = document.createElement("span");
+    dot.className = "legend-dot";
+    dot.style.backgroundColor = colors[item.label];
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const count = document.createElement("span");
+    count.className = "legend-count";
+    count.textContent = formatNumber(item.value);
+    button.append(dot, label, count);
+    if (item.key !== "matched") {
+      button.title = `Show ${item.label.toLowerCase()} exceptions`;
+      button.addEventListener("click", () => {
+        setView("controls");
+        document.getElementById("statusFilter").value = item.label;
+        renderExceptions();
+      });
+    } else {
+      button.disabled = true;
+      button.title = "Cleared entries are not included in the exception queue";
+    }
+    legend.append(button);
+  });
+}
+
+let sortKey = "bank_id";
+let sortDirection = 1;
+function filteredExceptions() {
+  const query = document.getElementById("exceptionSearch").value.trim().toLowerCase();
+  const status = document.getElementById("statusFilter").value;
+  return DATA.controls.exceptions
+    .filter(row => (!status || row.status === status))
+    .filter(row => !query || [row.bank_id, row.ledger_id, row.status, row.variance]
+      .join(" ").toLowerCase().includes(query))
+    .sort((left, right) => {
+      if (sortKey === "variance") {
+        return ((Number(left.variance) || 0) - (Number(right.variance) || 0)) * sortDirection;
+      }
+      return String(left[sortKey]).localeCompare(String(right[sortKey]), undefined, {numeric:true}) * sortDirection;
+    });
+}
+
+function renderExceptions() {
+  const body = document.getElementById("exceptionRows");
+  const rows = filteredExceptions();
+  body.replaceChildren();
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+    [row.bank_id, row.ledger_id || "—"].forEach(value => {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.append(td);
+    });
+    const status = document.createElement("td");
+    const pill = document.createElement("span");
+    pill.className = `status-pill ${row.status.toLowerCase().replaceAll(" ", "-")}`;
+    pill.textContent = row.status;
+    status.append(pill);
+    const variance = document.createElement("td");
+    variance.textContent = row.variance === "" ? "—" : Number(row.variance).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+    tr.append(status, variance);
+    body.append(tr);
+  });
+  document.getElementById("exceptionCount").textContent =
+    `Showing ${formatNumber(rows.length)} of ${formatNumber(DATA.controls.open_count)} exceptions`;
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.className = "empty";
+    td.textContent = "No exceptions match your search.";
+    tr.append(td);
+    body.append(tr);
+  }
+}
+
+function exportExceptions() {
+  const rows = filteredExceptions();
+  const values = [["Bank ID", "Ledger ID", "Status", "Signed variance"],
+    ...rows.map(row => [row.bank_id, row.ledger_id, row.status, row.variance])];
+  const csv = values.map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  link.href = url;
+  link.download = "reconciliation-exceptions.csv";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function setView(id) {
+  const page = pageMeta[id] ? id : "overview";
+  document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === page));
+  document.querySelectorAll(".side-nav a").forEach(link => {
+    if (link.dataset.view === page) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+  document.getElementById("pageTitle").textContent = pageMeta[page][0];
+  document.getElementById("pageSubtitle").textContent = pageMeta[page][1];
+  document.getElementById("crumbTitle").textContent = pageMeta[page][0];
+  document.title = `${pageMeta[page][0]} | MediRobo Finance`;
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("menuToggle").setAttribute("aria-expanded", "false");
+}
+
+addKpis("overviewKpis", [
+  ["Overdue invoices", formatNumber(DATA.receivables.overdue_count), "Across all reported regions", "◷", "warning"],
+  ["Aged 91+ days", percent(DATA.receivables.aging_91_plus / DATA.receivables.overdue_count), `${formatNumber(DATA.receivables.aging_91_plus)} invoices`, "⌛", "warning"],
+  ["Bank entries cleared", percent(DATA.controls.cleared_count / DATA.controls.bank_count), `${formatNumber(DATA.controls.cleared_count)} of ${formatNumber(DATA.controls.bank_count)} entries`, "✓", "positive"],
+  ["Claims needing review", formatNumber(DATA.controls.review_claim_count), `Of ${formatNumber(DATA.controls.claim_count)} reimbursements`, "!", ""]
+]);
+addKpis("receivableKpis", [
+  ["Overdue invoices", formatNumber(DATA.receivables.overdue_count), "Across all reported regions", "◷", "warning"],
+  ["Aged 91+ days", formatNumber(DATA.receivables.aging_91_plus), "Highest-priority aging bucket", "⌛", "warning"],
+  ["91+ share of overdue", percent(DATA.receivables.aging_91_plus / DATA.receivables.overdue_count), "Share of overdue invoice count", "%", "warning"],
+  ["Regions in report", formatNumber(DATA.receivables.regions.length), "With overdue invoices", "◎", ""]
+]);
+addKpis("riskKpis", [
+  ["Holdout ROC-AUC", DATA.risk.roc_auc.toFixed(3), "Modest separation in this run", "⌁", "warning"],
+  ["Overdue recall", percent(DATA.risk.overdue_recall), "Overdue cases identified", "◉", "positive"],
+  ["Overdue precision", percent(DATA.risk.overdue_precision), "Flagged cases actually overdue", "!", "warning"],
+  ["Holdout invoices", formatNumber(DATA.risk.paid_count + DATA.risk.overdue_holdout_count), "Paid and overdue classes", "▤", ""]
+]);
+addKpis("controlKpis", [
+  ["Bank entries", formatNumber(DATA.controls.bank_count), "In the reconciliation set", "↔", ""],
+  ["Cleared", formatNumber(DATA.controls.cleared_count), `${percent(DATA.controls.cleared_count / DATA.controls.bank_count)} matched`, "✓", "positive"],
+  ["Open exceptions", formatNumber(DATA.controls.open_count), "Require investigation", "!", "warning"],
+  ["Open vendor invoices", formatNumber(DATA.controls.open_vendor_count), `Of ${formatNumber(DATA.controls.vendor_count)} invoices`, "▤", ""]
+]);
+
+renderBars("overviewAging", DATA.receivables.aging);
+renderBars("receivableAging", DATA.receivables.aging, formatNumber, "amber");
+renderBars("overviewRegions", DATA.receivables.regions.slice(0, 5));
+renderBars("receivableRegions", DATA.receivables.regions);
+renderBars("overviewRisk", [
+  {label:"Overdue recall", value:DATA.risk.overdue_recall},
+  {label:"Overdue precision", value:DATA.risk.overdue_precision},
+  {label:"ROC-AUC", value:DATA.risk.roc_auc}
+], percent, "green");
+renderBars("riskBars", [
+  {label:"Recall · cases found", value:DATA.risk.overdue_recall},
+  {label:"Precision · flags correct", value:DATA.risk.overdue_precision}
+], percent);
+renderDonut();
+
+document.getElementById("agingInsight").textContent =
+  `${formatNumber(DATA.receivables.aging_91_plus)} invoices (${percent(DATA.receivables.aging_91_plus / DATA.receivables.overdue_count)}) are more than 90 days overdue. Prioritize validation and follow-up for this aging segment.`;
+document.getElementById("controlCards").innerHTML =
+  `<div class="control-card"><span>Reimbursements requiring review</span><strong>${formatNumber(DATA.controls.review_claim_count)} <small>/ ${formatNumber(DATA.controls.claim_count)}</small></strong><small>Demo-rule exceptions</small></div>
+   <div class="control-card"><span>Vendor invoices open</span><strong>${formatNumber(DATA.controls.open_vendor_count)} <small>/ ${formatNumber(DATA.controls.vendor_count)}</small></strong><small>Overdue or pending</small></div>
+   <div class="control-card"><span>Unmatched bank entries</span><strong>${formatNumber(DATA.controls.exceptions.filter(row => row.status === "Unmatched").length)}</strong><small>Without a confirmed ledger match</small></div>`;
+
+renderExceptions();
+document.getElementById("exceptionSearch").addEventListener("input", renderExceptions);
+document.getElementById("statusFilter").addEventListener("change", renderExceptions);
+document.getElementById("clearFilters").addEventListener("click", () => {
+  document.getElementById("exceptionSearch").value = "";
+  document.getElementById("statusFilter").value = "";
+  renderExceptions();
+});
+document.querySelectorAll(".sort-button").forEach(button => button.addEventListener("click", () => {
+  if (sortKey === button.dataset.sort) sortDirection *= -1;
+  else { sortKey = button.dataset.sort; sortDirection = 1; }
+  renderExceptions();
+}));
+document.getElementById("downloadCsv").addEventListener("click", exportExceptions);
+document.querySelectorAll(".side-nav a, .panel-link, .brand").forEach(link => {
+  link.addEventListener("click", () => setView(link.getAttribute("href").slice(1)));
+});
+window.addEventListener("hashchange", () => setView(location.hash.slice(1)));
+document.getElementById("menuToggle").addEventListener("click", event => {
+  const sidebar = document.getElementById("sidebar");
+  const open = sidebar.classList.toggle("open");
+  event.currentTarget.setAttribute("aria-expanded", String(open));
+});
+setView(location.hash.slice(1) || "overview");
+</script>
+</body>
+</html>
+"""
+
+payload = json.dumps(dashboard_data, ensure_ascii=False).replace("</", "<\\/")
+html = html_template.replace("__CSS__", css).replace("__DATA__", payload)
+(ROOT / "dashboard.html").write_text(html, encoding="utf-8")

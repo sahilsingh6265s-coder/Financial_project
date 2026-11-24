@@ -5,7 +5,7 @@ A step-by-step finance operations analysis for a fictional, cross-border medical
 
 ## Open the dashboard
 
-Extract the ZIP and open [dashboard.html](dashboard.html) in a browser. The three views work offline from one HTML file. Use the navigation at the top to switch workflows.
+Open the [interactive dashboard in your browser](https://raw.githack.com/sahilsingh6265s-coder/Financial_project/main/dashboard.html), or open [dashboard.html](dashboard.html) locally. The dashboard is a standalone HTML file with executive, receivables, payment-risk, and finance-controls views. Search, filter, and sort reconciliation exceptions, and export the filtered results to CSV.
 
 | View | What to look for | Source |
 | --- | --- | --- |
